@@ -28,6 +28,11 @@ def convert(
     met_only: bool = False,
     progress: Callable[[int, int], None] | None = None,
 ) -> ConversionResult:
+    if not torrent.v1_compatible:
+        raise ValueError(
+            "该 torrent 没有可用于旧版 Part 转换的 BitTorrent v1 SHA-1 pieces。"
+            "主界面的 Torrent → ED2K 仍可正常使用；Part 转换仅支持有效的 v1/hybrid torrent。"
+        )
     if target.length != ed2k.size:
         raise ValueError(f"torrent 文件大小与 ED2K 链接不一致：{target.length} != {ed2k.size}")
     if part_number < 1 or part_number > 999:
