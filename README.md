@@ -1,64 +1,98 @@
 # dmTorrent2Part
 
-一个面向现代 Windows 的 **clean-room Python 重写版** dmTorrent2Part。
+`dmTorrent2Part` 是一个面向 Windows 的 **Torrent → ED2K** 工具，并保留旧版程序最有价值的“BT 未完成文件 → eMule `.part/.part.met`”兼容功能。
 
-它用于把 BitTorrent 客户端留下的未完成文件中，**已经通过 torrent SHA-1 校验的分片**转换成 eMule/eDonkey 可继续下载的 `.part` + `.part.met`。
+本项目是 clean-room Python 重写：没有使用旧程序源码，实现依据公开的 BitTorrent / ED2K / eMule 文件格式以及旧程序可观察行为重新实现。
 
-> 本项目没有使用原程序源码。实现依据公开的 BitTorrent v1、eD2K / eMule `.part.met` 格式，以及对旧程序公开可见行为的兼容性观察重新实现。
+## 主要功能
 
-## 为什么重写
+### 1. Torrent → ED2K（默认功能）
 
-旧版 dmTorrent2Part 已多年停止维护，原程序是 32 位原生 Windows 程序并经过压缩/保护。与其维护不可读的反编译代码，本项目只复现有价值的兼容行为：
+打开 `.torrent` 后，程序会按种子原有目录结构列出全部文件：
 
-- 读取 BitTorrent v1 `.torrent`
-- 多文件 torrent 文件列表选择
-- SHA-1 验证未完成文件中真正完整的 BT 分片
-- 解析 `ed2k://|file|...` 链接及可选 `p=` 分块哈希
-- 生成 eMule/eDonkey `.part` / `.part.met`
-- 4 GiB+ 文件使用 large-file part.met 版本
-- 多文件 torrent 的跨文件边界分片采用保守策略：无法仅凭单个文件验证时标记为缺口，避免把错误数据交给 eMule
-- 中文 GUI + CLI
-- GitHub Actions 自动测试并打包 Windows 单文件 EXE
+- torrent 内本身带有 ED2K 哈希时，点击文件即可直接显示并复制 `ed2k://` 链接；
+- torrent 没有 ED2K 哈希时，可选择对应的本地完整文件计算；
+- 可选择下载根目录，自动匹配 torrent 中的文件并批量计算缺失的 ED2K；
+- 自动跳过 BitTorrent padding 文件；
+- 计算在后台线程运行，不阻塞界面。
 
-## 使用方法
+> **为什么有些 torrent 不能“直接转换”？**  
+> BitTorrent v1 保存的是 SHA-1 piece 哈希，BitTorrent v2 使用 SHA-256 Merkle tree，而 ED2K 使用 MD4/ED2K 哈希。不同哈希之间不能相互换算。因此，只有种子本身携带 ED2K 扩展字段时才能仅凭 torrent 立即得到链接；否则必须读取本地完整文件计算 ED2K。本程序不会伪造链接。
 
-### Windows 图形界面
+### 2. 更广的 Torrent 兼容
+
+文件列表 / ED2K 主功能支持：
+
+- BitTorrent v1 单文件、多文件种子；
+- BitTorrent v2-only `file tree`；
+- v1/v2 hybrid torrent；
+- `name.utf-8` / `path.utf-8`；
+- torrent 声明的 `encoding` / `codepage`（例如 GBK/GB2312 等旧种子）；
+- BitComet 常见的 `ed2k` 扩展：单文件、逐文件、连续 16-byte 哈希表、哈希列表、32 位十六进制形式；
+- padding 文件识别；
+- 即使 v1 `pieces` 缺失或异常，仍尽可能读取文件树和已有 ED2K 信息。
+
+### 3. 本地 ED2K 计算
+
+- 使用 eMule 兼容的 9,728,000-byte 分块规则；
+- 正确处理文件大小刚好为 ED2K 分块整数倍的兼容行为；
+- 优先使用 PyCryptodome 的 C 实现加速 MD4；仍保留纯 Python fallback；
+- 支持多 GB 文件和批量计算。
+
+### 4. 旧版 Part 转换仍保留
+
+第二个标签页保留 v1.0 的兼容功能：
+
+- 校验 BitTorrent v1 SHA-1 pieces；
+- 只把校验通过的数据写入 eMule `.part`；
+- 生成 `.part.met`；
+- 支持仅生成 `.part.met`；
+- 支持 4 GiB+ 文件；
+- 多文件 torrent 的跨文件边界 piece 采用保守策略，避免把未经验证的数据标记为完整。
+
+该功能依赖 **有效的 BitTorrent v1 pieces**。v2-only torrent 可用于 Torrent → ED2K，但不能用于旧 Part 恢复流程。
+
+## Windows 图形界面
+
+直接运行 Release 中的 `dmTorrent2Part.exe`。
+
+默认打开 **Torrent → ED2K** 标签页：
+
+1. 点击“打开 Torrent…”；
+2. 左侧目录树会显示种子中的全部文件；
+3. 点击文件：
+   - 如果 torrent 已带 ED2K，链接立即显示；
+   - 如果没有，点击“选择本地文件计算…”；
+4. 如果已经下载了整个 torrent，可选择“本地下载根目录”，再点“批量计算缺失 ED2K”；
+5. 点击“复制 ED2K”。
+
+也可以把 `.torrent` 路径作为启动参数传给程序，启动后自动打开。
+
+## CLI
+
+只查看 torrent 文件与 ED2K 状态：
 
 ```powershell
-python -m dmtorrent2part
+dmTorrent2Part example.torrent
 ```
 
-依次选择：
+指定一个本地完整文件计算选中索引的 ED2K：
 
-1. `.torrent`
-2. torrent 内目标文件（单文件种子会自动只有一项）
-3. BT 客户端留下的未完成文件
-4. 对应文件的 ED2K 链接
-5. 输出目录与 Part 编号
-6. 点击“开始转换”
-
-输出例如：
-
-```text
-001.part
-001.part.met
+```powershell
+dmTorrent2Part example.torrent --index 2 --local-file "D:\Downloads\movie.mkv"
 ```
 
-把两个文件放入 eMule 的临时目录，再让 eMule 重新载入即可。
+按下载根目录批量匹配并输出 ED2K：
 
-### CLI
+```powershell
+dmTorrent2Part example.torrent --root "D:\Downloads"
+```
+
+旧版 Part 转换命令仍兼容：
 
 ```powershell
 dmTorrent2Part movie.torrent movie.mkv "ed2k://|file|movie.mkv|123456789|0123456789ABCDEF0123456789ABCDEF|/" -o output
 ```
-
-多文件种子可先查看索引：
-
-```powershell
-dmTorrent2Part package.torrent dummy "ed2k://|file|x|0|00000000000000000000000000000000|/" --list
-```
-
-再用 `--index N` 选择目标文件。
 
 ## 安装 / 开发
 
@@ -70,28 +104,22 @@ pytest -q
 python -m dmtorrent2part
 ```
 
-## 打包 EXE
+## Windows EXE
+
+GitHub Actions 会在 Windows Runner 上执行测试并用 PyInstaller 生成单文件 EXE。EXE 和窗口使用从旧版 `dmTorrent2Part` 提取的原始 `MAINICON` 图标资源。
+
+本地构建：
 
 ```powershell
-pyinstaller --noconfirm --clean --onefile --windowed --name dmTorrent2Part dmTorrent2Part.py
+python -c "from dmtorrent2part.icons import write_ico; write_ico('dmTorrent2Part.ico')"
+pyinstaller --noconfirm --clean --onefile --windowed --icon dmTorrent2Part.ico --name dmTorrent2Part dmTorrent2Part.py
 ```
 
-生成：`dist/dmTorrent2Part.exe`
+## 数据安全
 
-仓库内 `.github/workflows/windows-build.yml` 也会在 Windows Runner 上自动测试和构建 EXE artifact。
+旧 Part 转换不会把“文件里已有的数据”直接视为有效。只有 torrent v1 SHA-1 校验通过的完整 piece 才写入新 `.part`，其余范围都作为 gap 交给 eMule 重下。
 
-## 数据安全策略
-
-dmTorrent2Part **不会把“文件里非零的数据”直接视为已完成**。只有 torrent v1 SHA-1 校验通过的完整 piece 才会写入新 `.part`，其余范围都记录为 gap 交给 eMule 重下。
-
-这意味着在多文件 torrent 中，如果一个 BT piece 横跨两个文件，而你只给程序其中一个文件，那个边界 piece 无法独立验证。本项目会宁可少保留一些数据，也不把未经验证的数据误标成完整。
-
-## 已知限制
-
-- 目前支持 BitTorrent v1；v2-only torrent 不支持。带 v1 `pieces` 的 hybrid torrent 可用。
-- 要生成可继续下载的 eMule 任务，必须有匹配目标文件的 ED2K 链接。
-- `.part.met` 会写入 ED2K 链接自带的 `p=` 分块哈希；普通 ED2K 链接没有 `p=` 时不伪造 hashset，由 eMule 后续从网络获取。
-- “仅生成 `.part.met`”适用于你已经自行准备好对应 `.part` 的情况。
+ED2K 主功能同样不会从 SHA-1 / SHA-256 猜测 MD4：没有内嵌 ED2K 时必须从完整本地文件计算。
 
 ## License
 
