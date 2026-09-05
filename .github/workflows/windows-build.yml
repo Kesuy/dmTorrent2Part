@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   test-and-build:
     runs-on: windows-latest
@@ -25,3 +28,40 @@ jobs:
         with:
           name: dmTorrent2Part-windows
           path: dist/dmTorrent2Part.exe
+      - name: Publish v1.0.0
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v1.0.0 --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release v1.0.0 already exists; skipping."
+            exit 0
+          }
+
+          @"
+          # dmTorrent2Part v1.0.0
+
+          dmTorrent2Part 的 Python clean-room 重写首个正式版。
+
+          ## 主要功能
+          - 中文图形界面（GUI）与命令行（CLI）
+          - 解析 BitTorrent v1 单文件和多文件种子
+          - 使用 torrent piece SHA-1 校验可复用数据
+          - 生成 eMule/aMule 兼容的 `.part` 与 `.part.met`
+          - 支持 ED2K 链接及可选 `p=` part hashset
+          - 支持 4 GiB 以上大文件的 `.part.met`
+          - Windows 单文件 EXE，无需安装 Python
+
+          ## 使用提示
+          请先备份 eMule/aMule 临时目录。转换完成后退出 eMule/aMule，将生成的 `.part` / `.part.met` 放入临时目录后重新启动客户端。
+
+          这是基于公开文件格式与旧版程序外部行为重新实现的兼容版本，不包含原程序源码。
+          "@ | Set-Content -Path release-notes.md -Encoding utf8
+
+          gh release create v1.0.0 dist/dmTorrent2Part.exe `
+            --repo $env:GITHUB_REPOSITORY `
+            --target $env:GITHUB_SHA `
+            --title "dmTorrent2Part v1.0.0" `
+            --notes-file release-notes.md
