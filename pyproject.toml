@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dmTorrent2Part"
-version = "0.1.0"
-description = "Clean-room Python rewrite of dmTorrent2Part: convert verified BitTorrent partial data into eMule/eDonkey .part/.part.met files."
+version = "1.1.0"
+description = "Torrent to ED2K utility with broad v1/v2/hybrid parsing and legacy eMule part conversion."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Kesuy"}]
 keywords = ["bittorrent", "emule", "ed2k", "part.met", "torrent"]
+dependencies = ["pycryptodome>=3.20"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: Microsoft :: Windows",
