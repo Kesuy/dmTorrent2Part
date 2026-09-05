@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dmTorrent2Part"
+version = "0.1.0"
+description = "Clean-room Python rewrite of dmTorrent2Part: convert verified BitTorrent partial data into eMule/eDonkey .part/.part.met files."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Kesuy"}]
+keywords = ["bittorrent", "emule", "ed2k", "part.met", "torrent"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: Microsoft :: Windows",
+  "License :: OSI Approved :: MIT License",
+]
+
+[project.scripts]
+dmTorrent2Part = "dmtorrent2part.cli:main"
+
+[project.gui-scripts]
+dmTorrent2Part-gui = "dmtorrent2part.gui:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyinstaller>=6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
