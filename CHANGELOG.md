@@ -1,0 +1,30 @@
+# Changelog
+
+## v1.1.1
+
+### Fixed
+
+- 修复部分迅雷、国产站点生成的 torrent 无法打开的问题。
+- bencode 解析从严格 EOF 模式调整为兼容模式：允许文件尾存在无害的空格、Tab、CRLF、UTF-8 BOM。
+- 对真正的异常尾部垃圾仍保持报错，避免静默读取错误文件。
+- 优化错误场景兼容性，避免出现 `trailing data after encoded value` 导致正常 torrent 无法导入。
+
+### Improved
+
+- 增加现实世界 torrent 兼容性。
+- 为后续版本增加 torrent 解析兼容回归测试。
+
+## v1.1.0
+
+### Added
+
+- Torrent → ED2K 主流程。
+- BitTorrent v1/v2/hybrid torrent 文件解析。
+- BitComet ED2K 扩展读取。
+- 本地文件 ED2K 计算。
+- 保留未完成文件 → eMule `.part/.part.met` 功能。
+- Windows 单文件 EXE 发布。
+
+### Notes
+
+- 普通 torrent 不一定包含 ED2K 哈希；没有内置 ED2K 时需要完整本地文件计算。
