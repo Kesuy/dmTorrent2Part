@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.1.2
+
+### Added
+
+- Added torrent compatibility diagnostics.
+- Added cleaned torrent export workflow for recoverable malformed tails.
+  - Detect harmless trailing CRLF, whitespace, and BOM.
+  - Keep strict rejection for real corrupted trailing data.
+
+### Fixed
+
+- Fixed some 迅雷 / 国产站点 generated torrent files failing to open.
+- Fixed `trailing data after encoded value` caused by valid bencode followed by harmless bytes.
+
+### Improved
+
+- Improved error messages to distinguish recoverable compatibility issues from damaged torrent files.
+- Added regression coverage for real-world torrent compatibility cases.
+
 ## v1.1.1
 
 ### Fixed
