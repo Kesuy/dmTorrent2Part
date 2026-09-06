@@ -8,6 +8,10 @@ class BencodeError(ValueError):
     pass
 
 
+_UTF8_BOM = b"\xef\xbb\xbf"
+_ASCII_WS = b" \t\r\n"
+
+
 @dataclass
 class _Decoder:
     data: bytes
@@ -84,23 +88,44 @@ class _Decoder:
             values[key] = self.parse()
 
 
-def decode(data: bytes, *, strict: bool = False) -> Any:
-    """Decode bencode.
+def _ignorable_tail(data: bytes) -> bool:
+    if not data:
+        return True
+    without_bom = data.replace(_UTF8_BOM, b"")
+    return without_bom.strip(_ASCII_WS) == b""
 
-    Torrent files found in the wild are often produced by tools that append
-    harmless whitespace (usually CRLF) after the final bencode value. The
-    default mode accepts ASCII whitespace and UTF-8 BOM after the value while
-    still rejecting actual garbage. Use strict=True for protocol validation.
+
+def decode_prefix(data: bytes, *, allow_leading_bom: bool = True) -> tuple[Any, int]:
+    """Decode the first bencoded value and return ``(value, end_offset)``.
+
+    The returned offset refers to the original byte string. Trailing bytes are
+    intentionally not validated so diagnostic/repair code can inspect them.
     """
-    decoder = _Decoder(data)
+    start = len(_UTF8_BOM) if allow_leading_bom and data.startswith(_UTF8_BOM) else 0
+    decoder = _Decoder(data, start)
     value = decoder.parse()
-    trailing = data[decoder.pos:]
+    return value, decoder.pos
+
+
+def decode(data: bytes, *, strict: bool = False, return_end: bool = False) -> Any:
+    """Decode bencode with real-world torrent compatibility.
+
+    Default mode accepts a leading UTF-8 BOM and harmless trailing combinations
+    of ASCII whitespace / UTF-8 BOM. ``strict=True`` requires the bencoded
+    value to occupy the entire input exactly.
+    """
+    value, end = decode_prefix(data, allow_leading_bom=not strict)
+    trailing = data[end:]
+
     if strict:
-        if trailing:
+        if end != len(data):
             raise BencodeError("trailing data after bencoded value")
-    elif trailing and trailing not in (b"\xef\xbb\xbf",) and trailing.strip(b" \t\r\n"):
+        if data.startswith(_UTF8_BOM):
+            raise BencodeError("leading UTF-8 BOM before bencoded value")
+    elif not _ignorable_tail(trailing):
         raise BencodeError("trailing data after bencoded value")
-    return value
+
+    return (value, end) if return_end else value
 
 
 def encode(value: Any) -> bytes:
