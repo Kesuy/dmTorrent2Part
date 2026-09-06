@@ -84,10 +84,21 @@ class _Decoder:
             values[key] = self.parse()
 
 
-def decode(data: bytes) -> Any:
+def decode(data: bytes, *, strict: bool = False) -> Any:
+    """Decode bencode.
+
+    Torrent files found in the wild are often produced by tools that append
+    harmless whitespace (usually CRLF) after the final bencode value. The
+    default mode accepts ASCII whitespace and UTF-8 BOM after the value while
+    still rejecting actual garbage. Use strict=True for protocol validation.
+    """
     decoder = _Decoder(data)
     value = decoder.parse()
-    if decoder.pos != len(data):
+    trailing = data[decoder.pos:]
+    if strict:
+        if trailing:
+            raise BencodeError("trailing data after bencoded value")
+    elif trailing and trailing not in (b"\xef\xbb\xbf",) and trailing.strip(b" \t\r\n"):
         raise BencodeError("trailing data after bencoded value")
     return value
 
