@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1.3
+
+### Added
+
+- Added Torrent compatibility diagnosis before opening failure dialogs.
+- Added Torrent repair workflow for recoverable malformed torrent tails.
+- Added GUI version display in the application title.
+
+### Fixed
+
+- Fixed non-standard torrent files with harmless trailing data (CRLF/BOM/whitespace) being treated as corrupted.
+- Improved error reporting so users can distinguish repairable compatibility issues from real corruption.
+
+### Improved
+
+- Release notes now include explicit version changes instead of relying only on GitHub compare links.
+- Added regression coverage for real-world torrent compatibility cases.
+
 ## v1.1.2
 
 ### Added
